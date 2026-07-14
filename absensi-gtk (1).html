@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Absensi GTK – Kabupaten Mesuji</title>
+<meta name="description" content="Sistem Kehadiran Digital GTK Kabupaten Mesuji – catat absensi guru dengan foto, lokasi GPS, dan ekspor rekap ke Excel." />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,650;8..60,800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --ink:#1C2B3A;--paper:#F4F1E6;--card:#FFFFFF;
+  --navy:#1F3A5F;--navy-dark:#142840;--navy-tint:#E4EAF1;
+  --gold:#C89B3C;--gold-dark:#9A7220;--gold-tint:#F2E6C9;
+  --green:#3E7A4D;--green-tint:#E1EDE2;
+  --red:#B4402A;--red-tint:#F5E1DC;
+  --muted:#6E6858;--line:#DED5B8;
+  --fd:'Source Serif 4',serif;--fb:'IBM Plex Sans',sans-serif;--fm:'IBM Plex Mono',monospace;
+}
+body{
+  font-family:var(--fb);color:var(--ink);background:var(--paper);
+  min-height:100vh;
+  background-image:repeating-linear-gradient(0deg,rgba(31,58,95,0.032) 0 1px,transparent 1px 28px);
+  padding:0 0 60px;
+}
+
+/* ── TOP BANNER ── */
+.topbanner{
+  background:var(--navy); color:#fff; text-align:center; padding:8px 16px;
+  font-size:12px; letter-spacing:0.04em; font-family:var(--fm);
+}
+.topbanner a{color:var(--gold);text-decoration:none;}
+
+/* ── HERO ── */
+.hero{
+  background:linear-gradient(135deg,var(--navy-dark) 0%,var(--navy) 60%,#2a5f9e 100%);
+  color:#fff; padding:36px 20px 40px; text-align:center; position:relative; overflow:hidden;
+}
+.hero::before{
+  content:''; position:absolute; width:340px; height:340px; border-radius:50%;
+  background:rgba(255,255,255,0.04); top:-80px; right:-80px; pointer-events:none;
+}
+.hero::after{
+  content:''; position:absolute; width:200px; height:200px; border-radius:50%;
+  background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; pointer-events:none;
+}
+.hero-badge{
+  display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.2); border-radius:100px; padding:5px 14px;
+  font-size:11.5px; font-family:var(--fm); letter-spacing:0.05em; margin-bottom:16px;
+}
+.hero h1{font-family:var(--fd);font-weight:800;font-size:clamp(26px,6vw,38px);letter-spacing:-0.01em;line-height:1.2;}
+.hero p{margin-top:10px;font-size:15px;opacity:0.85;max-width:420px;margin-left:auto;margin-right:auto;line-height:1.6;}
+.hero-pills{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:18px;}
+.hero-pill{
+  display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);
+  border-radius:100px;padding:5px 12px;font-size:12px;font-weight:600;
+}
+.clock-bar{
+  background:rgba(0,0,0,0.25);padding:10px 20px;text-align:center;
+  font-family:var(--fm);font-size:13px;letter-spacing:0.04em;
+}
+#liveclock{font-size:17px;font-weight:600;color:var(--gold);}
+
+/* ── MAIN LAYOUT ── */
+.main{max-width:640px;margin:0 auto;padding:28px 16px 0;}
+
+/* ── CARD ── */
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:24px;box-shadow:0 12px 32px -18px rgba(20,25,10,0.28);margin-bottom:22px;
+}
+.card-title{
+  font-family:var(--fd);font-weight:700;font-size:18px;margin-bottom:18px;
+  display:flex;align-items:center;gap:8px;color:var(--navy);
+  border-bottom:1px solid var(--line);padding-bottom:12px;
+}
+.card-title svg{flex-shrink:0;}
+
+/* ── FIELDS ── */
+.field{margin-bottom:16px;}
+.label{
+  font-size:11px;text-transform:uppercase;letter-spacing:0.07em;font-weight:700;
+  color:var(--navy);display:flex;align-items:center;gap:5px;margin-bottom:7px;
+}
+input[type=text],input[type=email],select,textarea{
+  width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;
+  font-family:var(--fb);font-size:14px;background:#FCFAF3;outline:none;color:var(--ink);
+  transition:border-color .15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--navy);}
+input[readonly]{background:#F0EDE0;color:var(--muted);}
+
+/* ── PHOTO ── */
+.photobox{
+  border:1.5px dashed var(--line);border-radius:12px;padding:14px;
+  display:flex;align-items:center;gap:14px;background:#FCFAF3;cursor:pointer;
+  transition:border-color .15s;
+}
+.photobox:hover{border-color:var(--navy);}
+.ph-thumb{
+  width:68px;height:68px;border-radius:10px;object-fit:cover;flex-shrink:0;
+  background:var(--navy-tint);display:flex;align-items:center;justify-content:center;color:var(--navy);
+}
+.ph-thumb img{width:68px;height:68px;border-radius:10px;object-fit:cover;display:block;}
+.ph-label{font-weight:600;font-size:13.5px;}
+.ph-sub{font-size:12px;color:var(--muted);margin-top:3px;}
+
+/* ── LOCATION ── */
+.locbox{background:#FCFAF3;border:1.5px solid var(--line);border-radius:12px;padding:14px;}
+.locbtn{
+  width:100%;padding:11px;border-radius:10px;border:none;background:var(--navy);color:#fff;
+  font-weight:600;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  font-family:var(--fb);transition:opacity .15s;
+}
+.locbtn:disabled{opacity:0.55;cursor:not-allowed;}
+.locresult{
+  margin-top:10px;padding:10px 12px;background:var(--green-tint);border-radius:10px;
+  font-family:var(--fm);font-size:12px;color:#255030;display:flex;align-items:center;gap:7px;
+}
+.radiusbox{
+  margin-top:8px;padding:9px 12px;border-radius:10px;font-size:12px;
+  display:flex;align-items:center;gap:7px;font-weight:600;
+}
+.radiusbox.good{background:var(--green-tint);color:#255030;}
+.radiusbox.bad{background:var(--red-tint);color:var(--red);}
+.radiusbox.neutral{background:var(--gold-tint);color:#7A5B14;}
+.locerror{margin-top:8px;font-size:12px;color:var(--red);display:flex;gap:6px;align-items:flex-start;}
+.manualwrap{margin-top:10px;}
+
+/* ── SUBMIT ── */
+.submitbtn{
+  width:100%;padding:14px;border-radius:12px;border:none;background:var(--gold);color:var(--navy-dark);
+  font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  font-family:var(--fb);transition:opacity .15s;margin-top:4px;
+}
+.submitbtn:disabled{opacity:0.4;cursor:not-allowed;}
+.successmsg{
+  margin-top:12px;padding:11px 13px;background:var(--green-tint);color:#255030;
+  border-radius:10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;
+}
+.errormsg{
+  margin-top:12px;padding:11px 13px;background:var(--red-tint);color:var(--red);
+  border-radius:10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;
+}
+
+/* ── HISTORY ── */
+.hist-controls{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.filterselect{
+  flex:1;min-width:160px;display:flex;align-items:center;gap:8px;padding:9px 12px;
+  border:1.5px solid var(--line);border-radius:10px;background:#FCFAF3;font-size:13px;
+}
+.filterselect select{border:none;background:transparent;outline:none;font-family:var(--fb);font-size:13px;color:var(--ink);width:100%;}
+.exportbtn{
+  display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:10px;
+  border:none;background:var(--navy);color:#fff;font-weight:600;font-size:13px;
+  cursor:pointer;white-space:nowrap;font-family:var(--fb);transition:opacity .15s;
+}
+.exportbtn:disabled{opacity:0.4;cursor:not-allowed;}
+.hist-count{font-family:var(--fm);font-size:12px;color:var(--muted);margin-bottom:10px;}
+
+/* ── TICKET ── */
+.ticket{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:14px 16px;margin-bottom:12px;display:flex;gap:12px;position:relative;
+}
+.ticket-photo{width:54px;height:54px;border-radius:9px;object-fit:cover;flex-shrink:0;background:var(--navy-tint);display:flex;align-items:center;justify-content:center;color:var(--navy);}
+.ticket-photo img{width:54px;height:54px;border-radius:9px;object-fit:cover;display:block;}
+.ticket-name{font-weight:700;font-size:14px;}
+.ticket-school{font-size:12px;color:var(--navy);font-weight:600;margin-top:2px;}
+.ticket-meta{font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:6px;display:flex;flex-direction:column;gap:2px;}
+.ticket-badge{
+  position:absolute;top:12px;right:12px;background:var(--green-tint);color:var(--green);
+  font-size:10px;font-weight:700;padding:3px 9px;border-radius:100px;display:flex;align-items:center;gap:4px;
+}
+.ticket-badge.bad{background:var(--red-tint);color:var(--red);}
+.delbtn{
+  position:absolute;bottom:12px;right:12px;width:26px;height:26px;border-radius:8px;
+  border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--red);
+}
+.empty{text-align:center;padding:28px 10px;color:var(--muted);font-size:13px;}
+
+/* ── FOOTER ── */
+footer{
+  text-align:center;padding:28px 16px 16px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);margin-top:30px;
+}
+.credit{font-family:var(--fm);font-size:11.5px;font-weight:600;color:var(--navy);opacity:0.75;margin-top:4px;letter-spacing:0.06em;}
+
+/* ── ICONS (inline SVG helpers) ── */
+.icon{display:inline-flex;vertical-align:middle;}
+.spin{animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── UTILS ── */
+.hidden{display:none!important;}
+.flex{display:flex;}
+.gap8{gap:8px;}
+.ai-center{align-items:center;}
+
+@media(max-width:480px){
+  .hero h1{font-size:24px;}
+  .hist-controls{flex-direction:column;}
+  .exportbtn,.filterselect{width:100%;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbanner">
+  🏫 Sistem Absensi GTK Digital &nbsp;·&nbsp; Dinas Pendidikan &amp; Kebudayaan Kabupaten Mesuji &nbsp;·&nbsp;
+  <a href="mailto:disdik@mesujikab.go.id">disdik@mesujikab.go.id</a>
+</div>
+
+<div class="hero">
+  <div class="hero-badge">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Sistem Kehadiran Digital
+  </div>
+  <h1>Absensi GTK</h1>
+  <p>Pencatatan kehadiran Guru &amp; Tenaga Kependidikan (GTK) secara digital — dilengkapi foto, lokasi GPS, validasi radius, dan ekspor rekap Excel.</p>
+  <div class="hero-pills">
+    <div class="hero-pill">📸 Foto Kehadiran</div>
+    <div class="hero-pill">📍 Validasi Lokasi GPS</div>
+    <div class="hero-pill">📊 Ekspor Excel</div>
+    <div class="hero-pill">🔍 Filter per Sekolah</div>
+  </div>
+  <div class="clock-bar" style="margin-top:20px;border-radius:10px;max-width:380px;margin-left:auto;margin-right:auto;">
+    <span id="liveclock">--:--:--</span>
+    &nbsp;·&nbsp; <span id="livedate">--</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- FORM ABSENSI -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      Catat Kehadiran
+    </div>
+
+    <!-- NAMA SEKOLAH -->
+    <div class="field">
+      <div class="label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Nama Sekolah
+      </div>
+      <input type="text" id="schoolName" list="sekolah-list" placeholder="Pilih atau ketik nama sekolah" oninput="onFormChange()" />
+      <datalist id="sekolah-list"></datalist>
+    </div>
+
+    <!-- NAMA GTK -->
+    <div class="field">
+      <div class="label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Nama GTK (Guru / Tenaga Kependidikan)
+      </div>
+      <input type="text" id="teacherName" placeholder="Nama lengkap" oninput="onFormChange()" />
+    </div>
+
+    <!-- NIP (opsional) -->
+    <div class="field">
+      <div class="label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        NIP / NUPTK <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(opsional)</span>
+      </div>
+      <input type="text" id="nip" placeholder="Kosongkan jika tidak ada" oninput="onFormChange()" />
+    </div>
+
+    <!-- FOTO -->
+    <div class="field">
+      <div class="label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Foto Kehadiran
+      </div>
+      <div class="photobox" onclick="document.getElementById('fileInput').click()">
+        <div class="ph-thumb" id="photoPreview">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>
+        <div>
+          <div class="ph-label" id="photoLabel">Ambil atau unggah foto</div>
+          <div class="ph-sub">Gunakan kamera depan untuk swafoto kehadiran</div>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" capture="user" class="hidden" onchange="handlePhoto(event)" />
+      <div id="photoError" class="locerror hidden"></div>
+    </div>
+
+    <!-- LOKASI -->
+    <div class="field">
+      <div class="label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Lokasi
+      </div>
+      <div class="locbox">
+        <button class="locbtn" id="locBtn" onclick="ambilLokasi()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Ambil Lokasi Saat Ini
+        </button>
+        <div id="locResult" class="locresult hidden"></div>
+        <div id="radiusBox" class="radiusbox hidden"></div>
+        <div id="locError" class="locerror hidden"></div>
+        <div class="manualwrap">
+          <input type="text" id="manualLoc" placeholder="Atau isi lokasi manual, mis. Depan SMPN 8 Mesuji" oninput="onFormChange()" />
+        </div>
+      </div>
+    </div>
+
+    <!-- WAKTU -->
+    <div class="field">
+      <div class="label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Waktu Absen
+      </div>
+      <input type="text" id="waktuAbsen" readonly />
+    </div>
+
+    <button class="submitbtn" id="submitBtn" disabled onclick="submitAbsen()">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Catat Kehadiran
+    </button>
+    <div id="submitMsg" class="hidden"></div>
+  </div>
+
+  <!-- RIWAYAT -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Riwayat Absensi
+    </div>
+    <div class="hist-controls">
+      <div class="filterselect">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        <select id="schoolFilter" onchange="renderHistory()">
+          <option value="__all__">Semua Sekolah</option>
+        </select>
+      </div>
+      <button class="exportbtn" id="exportBtn" onclick="exportExcel()" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Ekspor Excel
+      </button>
+    </div>
+    <div class="hist-count" id="histCount">memuat data…</div>
+    <div id="histList"></div>
+  </div>
+
+</div><!-- /main -->
+
+<footer>
+  <div>Sistem Absensi GTK Digital &nbsp;·&nbsp; Dinas Pendidikan &amp; Kebudayaan Kabupaten Mesuji</div>
+  <div style="margin-top:4px;font-size:11.5px;">Data bersifat terbuka dan dapat diakses oleh semua pengguna aplikasi ini.</div>
+  <div class="credit">by Deddy Ngabalin</div>
+</footer>
+
+<script>
+/* ─────────────────────────────────────────────
+   KONFIGURASI SEKOLAH & RADIUS
+───────────────────────────────────────────── */
+const SCHOOL_COORDS = {
+  "SMPN 8 Mesuji":                   { lat:-3.9012, lng:105.6234, radius:200 },
+  "SMPN 9 Mesuji":                   { lat:-3.9087, lng:105.6301, radius:200 },
+  "SMPN 13 Mesuji":                  { lat:-3.8965, lng:105.6178, radius:200 },
+  "SMPN 15 Mesuji":                  { lat:-3.9143, lng:105.6355, radius:200 },
+  "SMPN Satu Atap 1 Mesuji":         { lat:-3.9143, lng:105.6355, radius:200 },
+  "SMPN Satu Atap 2 Mesuji":         { lat:-3.9143, lng:105.6355, radius:200 },
+  "SMPN Satu Atap 1 Rawajitu Utara": { lat:-3.9143, lng:105.6355, radius:200 },
+  "SMP Pangkal Mas":                  { lat:-3.9143, lng:105.6355, radius:200 },
+  "SMP Karya Utama":                  { lat:-3.9143, lng:105.6355, radius:200 },
+  "SMP Al Yazier":                    { lat:-3.9143, lng:105.6355, radius:200 },
+  "SMP Subulussalam":                 { lat:-3.9143, lng:105.6355, radius:200 },
+  "SMP Takhasus Al Qudsiyah":         { lat:-3.9143, lng:105.6355, radius:200 },
+};
+const SEKOLAH_OPTIONS = Object.keys(SCHOOL_COORDS);
+const STORAGE_KEY = "absensi-gtk-entries";
+
+/* ─────────────────────────────────────────────
+   STATE
+───────────────────────────────────────────── */
+let entries = [];
+let currentPhoto = null;
+let currentLoc   = null; // {lat,lng,accuracy}
+let distToSchool = null;
+
+/* ─────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────── */
+document.addEventListener("DOMContentLoaded", () => {
+  // Isi datalist sekolah
+  const dl = document.getElementById("sekolah-list");
+  SEKOLAH_OPTIONS.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s;
+    dl.appendChild(opt);
+  });
+  // Isi filter dropdown
+  const sf = document.getElementById("schoolFilter");
+  SEKOLAH_OPTIONS.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s; opt.textContent = s;
+    sf.appendChild(opt);
+  });
+  loadEntries();
+  tickClock();
+  setInterval(tickClock, 1000);
+});
+
+/* ─────────────────────────────────────────────
+   JAM BERJALAN
+───────────────────────────────────────────── */
+function tickClock() {
+  const now = new Date();
+  document.getElementById("liveclock").textContent =
+    now.toLocaleTimeString("id-ID", { timeZone:"Asia/Jakarta" });
+  document.getElementById("livedate").textContent =
+    now.toLocaleDateString("id-ID", { timeZone:"Asia/Jakarta", weekday:"long", day:"2-digit", month:"long", year:"numeric" });
+  document.getElementById("waktuAbsen").value = formatWaktu(now.toISOString());
+}
+
+function formatWaktu(iso) {
+  return new Date(iso).toLocaleString("id-ID", {
+    timeZone:"Asia/Jakarta", weekday:"long", day:"2-digit", month:"long",
+    year:"numeric", hour:"2-digit", minute:"2-digit", second:"2-digit"
+  }) + " WIB";
+}
+
+/* ─────────────────────────────────────────────
+   STORAGE
+───────────────────────────────────────────── */
+function loadEntries() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    entries = raw ? JSON.parse(raw) : [];
+  } catch(e) { entries = []; }
+  renderHistory();
+}
+
+function saveEntries() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); } catch(e) {}
+  renderHistory();
+}
+
+/* ─────────────────────────────────────────────
+   FOTO
+───────────────────────────────────────────── */
+function handlePhoto(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  showPhotoError("");
+  resizeImage(file).then(dataUrl => {
+    currentPhoto = dataUrl;
+    const prev = document.getElementById("photoPreview");
+    prev.innerHTML = `<img src="${dataUrl}" alt="foto" />`;
+    document.getElementById("photoLabel").textContent = "Foto siap dikirim — ketuk untuk mengganti";
+    onFormChange();
+  }).catch(() => showPhotoError("Foto gagal diproses, coba ambil ulang."));
+}
+
+function resizeImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject();
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject();
+      img.onload = () => {
+        const maxW = 400;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width  = img.width  * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.65));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function showPhotoError(msg) {
+  const el = document.getElementById("photoError");
+  if (msg) { el.innerHTML = svgAlert() + " " + msg; el.classList.remove("hidden"); }
+  else { el.classList.add("hidden"); }
+}
+
+/* ─────────────────────────────────────────────
+   LOKASI
+───────────────────────────────────────────── */
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function ambilLokasi() {
+  const btn = document.getElementById("locBtn");
+  document.getElementById("locError").classList.add("hidden");
+  document.getElementById("radiusBox").classList.add("hidden");
+  if (!navigator.geolocation) {
+    showLocError("Perangkat ini tidak mendukung deteksi lokasi. Isi lokasi manual di bawah.");
+    return;
+  }
+  btn.disabled = true;
+  btn.innerHTML = svgSpin() + " Mendeteksi lokasi…";
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      currentLoc = {
+        lat: pos.coords.latitude.toFixed(6),
+        lng: pos.coords.longitude.toFixed(6),
+        accuracy: Math.round(pos.coords.accuracy),
+      };
+      const res = document.getElementById("locResult");
+      res.innerHTML = svgCheck() + ` ${currentLoc.lat}, ${currentLoc.lng} &nbsp;·&nbsp; akurasi ±${currentLoc.accuracy}m`;
+      res.classList.remove("hidden");
+      document.getElementById("manualLoc").disabled = true;
+      document.getElementById("manualLoc").style.opacity = "0.5";
+      btn.disabled = false;
+      btn.innerHTML = svgPin() + " Perbarui Lokasi";
+      checkRadius();
+      onFormChange();
+    },
+    err => {
+      btn.disabled = false;
+      btn.innerHTML = svgPin() + " Ambil Lokasi Saat Ini";
+      showLocError("Tidak bisa mengambil lokasi (" + err.message + "). Isi lokasi manual di bawah.");
+    },
+    { enableHighAccuracy:true, timeout:12000 }
+  );
+}
+
+function checkRadius() {
+  const school = document.getElementById("schoolName").value.trim();
+  const coord  = SCHOOL_COORDS[school];
+  const box    = document.getElementById("radiusBox");
+  if (!currentLoc || !school) { box.classList.add("hidden"); return; }
+  if (!coord) {
+    box.className = "radiusbox neutral";
+    box.innerHTML = svgAlert() + " Koordinat sekolah ini belum terdaftar, radius tidak diverifikasi.";
+    box.classList.remove("hidden");
+    distToSchool = null;
+    onFormChange(); return;
+  }
+  distToSchool = distanceMeters(parseFloat(currentLoc.lat), parseFloat(currentLoc.lng), coord.lat, coord.lng);
+  const inRadius = distToSchool <= coord.radius;
+  box.className = "radiusbox " + (inRadius ? "good" : "bad");
+  box.innerHTML = (inRadius ? svgCheck() : svgAlert()) +
+    ` ${Math.round(distToSchool)}m dari ${school} (maks ${coord.radius}m)` +
+    (inRadius ? " — dalam radius, absen diizinkan." : " — terlalu jauh, absen ditolak.");
+  box.classList.remove("hidden");
+  onFormChange();
+}
+
+function showLocError(msg) {
+  const el = document.getElementById("locError");
+  el.innerHTML = svgAlert() + " " + msg;
+  el.classList.remove("hidden");
+}
+
+/* ─────────────────────────────────────────────
+   FORM VALIDATION
+───────────────────────────────────────────── */
+function onFormChange() {
+  checkRadius();
+  const school   = document.getElementById("schoolName").value.trim();
+  const teacher  = document.getElementById("teacherName").value.trim();
+  const manual   = document.getElementById("manualLoc").value.trim();
+  const hasLoc   = currentLoc || manual.length > 0;
+  const coord    = SCHOOL_COORDS[school];
+  const outOfRad = coord && currentLoc && distToSchool !== null && distToSchool > coord.radius;
+  const ok = school && teacher && currentPhoto && hasLoc && !outOfRad;
+  document.getElementById("submitBtn").disabled = !ok;
+}
+
+/* ─────────────────────────────────────────────
+   SUBMIT
+───────────────────────────────────────────── */
+function submitAbsen() {
+  const school  = document.getElementById("schoolName").value.trim();
+  const teacher = document.getElementById("teacherName").value.trim();
+  const nip     = document.getElementById("nip").value.trim();
+  const manual  = document.getElementById("manualLoc").value.trim();
+  if (!school || !teacher || !currentPhoto) return;
+
+  const entry = {
+    id: Date.now() + "-" + Math.random().toString(36).slice(2,6),
+    schoolName: school, teacherName: teacher, nip,
+    photo: currentPhoto,
+    lat: currentLoc ? currentLoc.lat : null,
+    lng: currentLoc ? currentLoc.lng : null,
+    accuracy: currentLoc ? currentLoc.accuracy : null,
+    manualLoc: currentLoc ? "" : manual,
+    distanceToSchool: distToSchool !== null ? Math.round(distToSchool) : null,
+    timestamp: new Date().toISOString(),
+  };
+  entries.unshift(entry);
+  saveEntries();
+
+  // Reset form
+  currentPhoto = null; currentLoc = null; distToSchool = null;
+  document.getElementById("schoolName").value  = "";
+  document.getElementById("teacherName").value = "";
+  document.getElementById("nip").value         = "";
+  document.getElementById("fileInput").value   = "";
+  document.getElementById("manualLoc").value   = "";
+  document.getElementById("manualLoc").disabled = false;
+  document.getElementById("manualLoc").style.opacity = "1";
+  document.getElementById("photoPreview").innerHTML =
+    `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+  document.getElementById("photoLabel").textContent = "Ambil atau unggah foto";
+  document.getElementById("locResult").classList.add("hidden");
+  document.getElementById("radiusBox").classList.add("hidden");
+  document.getElementById("locError").classList.add("hidden");
+  document.getElementById("locBtn").innerHTML = svgPin() + " Ambil Lokasi Saat Ini";
+  document.getElementById("locBtn").disabled = false;
+  document.getElementById("submitBtn").disabled = true;
+
+  const msg = document.getElementById("submitMsg");
+  msg.className = "successmsg";
+  msg.innerHTML = svgCheck() + " Kehadiran berhasil dicatat!";
+  msg.classList.remove("hidden");
+  setTimeout(() => msg.classList.add("hidden"), 4000);
+}
+
+/* ─────────────────────────────────────────────
+   RIWAYAT
+───────────────────────────────────────────── */
+function renderHistory() {
+  const filter = document.getElementById("schoolFilter").value;
+  const list   = filter === "__all__" ? entries : entries.filter(e => e.schoolName === filter);
+  document.getElementById("histCount").textContent = list.length + " entri ditemukan";
+  document.getElementById("exportBtn").disabled = list.length === 0;
+
+  const container = document.getElementById("histList");
+  if (list.length === 0) {
+    container.innerHTML = `<div class="empty">Belum ada data absensi untuk filter ini.</div>`;
+    return;
+  }
+  container.innerHTML = list.map(e => {
+    const coord  = SCHOOL_COORDS[e.schoolName];
+    const isBad  = coord && e.distanceToSchool !== null && e.distanceToSchool !== undefined && e.distanceToSchool > coord.radius;
+    const photo  = e.photo
+      ? `<div class="ticket-photo"><img src="${e.photo}" alt="${e.teacherName}" /></div>`
+      : `<div class="ticket-photo">${svgUser()}</div>`;
+    const locStr = e.lat ? `${e.lat}, ${e.lng} (±${e.accuracy}m)` : (e.manualLoc || "Lokasi tidak tercatat");
+    const distStr = (e.lat && coord && e.distanceToSchool !== null && e.distanceToSchool !== undefined)
+      ? `<span>${e.distanceToSchool}m dari sekolah</span>` : "";
+    const nipStr = e.nip ? `<span>NIP/NUPTK: ${e.nip}</span>` : "";
+    return `
+    <div class="ticket">
+      ${photo}
+      <div style="flex:1;min-width:0;">
+        <div class="ticket-name">${e.teacherName}</div>
+        <div class="ticket-school">${e.schoolName}</div>
+        <div class="ticket-meta">
+          ${nipStr}
+          <span>${formatWaktu(e.timestamp)}</span>
+          <span>${locStr}</span>
+          ${distStr}
+        </div>
+      </div>
+      <div class="ticket-badge ${isBad ? 'bad' : ''}">${svgCheckTiny()} ${isBad ? "Di luar radius" : "Hadir"}</div>
+      <div class="delbtn" onclick="hapusEntri('${e.id}')" title="Hapus entri ini">${svgTrash()}</div>
+    </div>`;
+  }).join("");
+}
+
+function hapusEntri(id) {
+  if (!confirm("Hapus data absensi ini?")) return;
+  entries = entries.filter(e => e.id !== id);
+  saveEntries();
+}
+
+/* ─────────────────────────────────────────────
+   EKSPOR EXCEL
+───────────────────────────────────────────── */
+function exportExcel() {
+  const filter = document.getElementById("schoolFilter").value;
+  const list   = filter === "__all__" ? entries : entries.filter(e => e.schoolName === filter);
+  if (!list.length) return;
+  const rows = list.map((e, i) => {
+    const coord = SCHOOL_COORDS[e.schoolName];
+    let status = "Lokasi manual";
+    if (e.lat) {
+      if (coord && e.distanceToSchool !== null && e.distanceToSchool !== undefined) {
+        status = e.distanceToSchool <= coord.radius ? "Dalam radius" : "Di luar radius";
+      } else { status = "Radius tidak diverifikasi"; }
+    }
+    return {
+      "No": i + 1,
+      "Nama GTK": e.teacherName,
+      "NIP / NUPTK": e.nip || "",
+      "Nama Sekolah": e.schoolName,
+      "Tanggal": new Date(e.timestamp).toLocaleDateString("id-ID", { timeZone:"Asia/Jakarta" }),
+      "Waktu": new Date(e.timestamp).toLocaleTimeString("id-ID", { timeZone:"Asia/Jakarta" }),
+      "Latitude": e.lat || "",
+      "Longitude": e.lng || "",
+      "Akurasi (m)": e.accuracy || "",
+      "Lokasi Manual": e.manualLoc || "",
+      "Jarak dari Sekolah (m)": e.distanceToSchool ?? "",
+      "Status Lokasi": status,
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws["!cols"] = [
+    {wch:4},{wch:22},{wch:18},{wch:28},{wch:12},{wch:10},
+    {wch:13},{wch:13},{wch:10},{wch:26},{wch:16},{wch:20}
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Absensi GTK");
+  const label = filter === "__all__" ? "Semua_Sekolah" : filter.replace(/\s+/g,"_");
+  const tgl   = new Date().toLocaleDateString("id-ID",{timeZone:"Asia/Jakarta"}).replace(/\//g,"-");
+  XLSX.writeFile(wb, `Rekap_Absensi_GTK_${label}_${tgl}.xlsx`);
+}
+
+/* ─────────────────────────────────────────────
+   SVG HELPERS
+───────────────────────────────────────────── */
+const S = (p,w=16) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="display:inline;vertical-align:middle;flex-shrink:0">${p}</svg>`;
+const svgCheck   = () => S(`<polyline points="20 6 9 17 4 12"/>`);
+const svgCheckTiny = () => S(`<polyline points="20 6 9 17 4 12"/>`,11);
+const svgAlert   = () => S(`<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>`);
+const svgPin     = () => S(`<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>`);
+const svgTrash   = () => S(`<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>`,14);
+const svgUser    = () => S(`<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>`,22);
+const svgSpin    = () => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin" style="display:inline;vertical-align:middle"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/></svg>`;
+</script>
+</body>
+</html>
